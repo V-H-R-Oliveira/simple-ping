@@ -41,7 +41,6 @@ const (
 	MIN_IP_HEADER_LENGTH = 5
 	ICMP_PROTO           = 1
 	ECHO_REQUEST         = 8
-	MAX_RESPONSE_LENGTH  = 65535
 	NO_FRAGMENT          = 2
 	MAX_TTL              = 255
 	DEFAULT_TIMEOUT      = 10
