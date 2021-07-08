@@ -8,7 +8,7 @@ A very simplified IPv4 ping clone written in Golang.
 
 - It accepts IPv4 addresses and domain names, such as google.com, microsoft.com, etc.
 
-- It uses a default packet size of 84 bytes (ipv4 (20 bytes) + icmp[headers (8 bytes) + [data + padding] (56 bytes)]).
+- It uses a default packet size of 84 bytes (IPv4 (20 bytes) + ICMP[headers (8 bytes) + [data + padding] (56 bytes)]).
 
 - The `data` field contains a [`struct timeval`](https://renenyffenegger.ch/notes/development/languages/C-C-plus-plus/C/libc/structs/timeval) with the current timestamp.
 
