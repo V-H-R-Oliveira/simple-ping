@@ -44,4 +44,5 @@ const (
 	MAX_RESPONSE_LENGTH  = 65535
 	NO_FRAGMENT          = 2
 	MAX_TTL              = 255
+	DEFAULT_TIMEOUT      = 10
 )

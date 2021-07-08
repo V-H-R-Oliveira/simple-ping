@@ -1,13 +1,17 @@
 package utils
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"strconv"
 	"strings"
+	"time"
+	"unsafe"
 
 	"github.com/V-H-R-Oliveira/dns-client/protocol"
 	"github.com/V-H-R-Oliveira/dns-client/utils"
+	icmpUtils "github.com/V-H-R-Oliveira/simple-icmp-client/protocol"
 )
 
 func IpToByteSlice(ip string) [4]byte {
@@ -48,4 +52,17 @@ func ResolveDomain(domain string) net.IP {
 	copy(resolvedDomain, rawIp)
 
 	return resolvedDomain
+}
+
+func PrettyPrint(timestamp time.Time, reply *icmpUtils.IcmpReply, domain string, icmpTime time.Duration) {
+	fmt.Printf(
+		"[%s] %d bytes from %s (%s): icmp_seq=%d ttl=%d time=%d ms\n",
+		timestamp.Format(time.RFC1123Z),
+		reply.IpHeader.TotalLength-uint16(len(reply.Reply.Data))+uint16(unsafe.Sizeof(reply.Reply))+uint16(unsafe.Sizeof(reply.IpHeader)),
+		domain,
+		reply.IpHeader.SrcAddr,
+		reply.Reply.SequenceNumber,
+		reply.IpHeader.TTL,
+		icmpTime.Milliseconds(),
+	)
 }

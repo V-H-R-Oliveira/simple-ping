@@ -2,13 +2,13 @@ package protocol
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"log"
 	"net"
 	"syscall"
 )
 
-// TODO: Compute RTT based on request/reply timestamp put in icmp packet
 func NewIPHeader(dstAddr net.IP) *IpProtoHeader {
 	return &IpProtoHeader{
 		Version:        DEFAULT_VERSION,
@@ -44,14 +44,23 @@ func (ipProto *IpProtoHeader) ToBytes() []byte {
 }
 
 func NewIcmpProto() *IcmpProto {
-	timeval := syscall.Timeval{}
-
-	if err := syscall.Gettimeofday(&timeval); err != nil {
-		log.Fatal("Error on getting time of day:", err)
+	packet := &IcmpProto{
+		Type:           ECHO_REQUEST,
+		Code:           0,
+		Checksum:       0,
+		Identifier:     generateRequestID(),
+		SequenceNumber: 0,
+		Data:           []byte{},
 	}
 
+	return packet
+}
+
+func (packet *IcmpProto) SetTimestamp() {
+	timeval := getTimestamp()
+
 	buffer := bytes.Buffer{}
-	binary.Write(&buffer, binary.LittleEndian, &timeval)
+	binary.Write(&buffer, binary.LittleEndian, timeval)
 
 	unpaddedData := buffer.Bytes()
 	padding := calculatePadding(len(unpaddedData))
@@ -60,20 +69,15 @@ func NewIcmpProto() *IcmpProto {
 		binary.Write(&buffer, binary.BigEndian, uint8(0))
 	}
 
-	packet := &IcmpProto{
-		Type:           ECHO_REQUEST,
-		Code:           0,
-		Checksum:       0,
-		Identifier:     generateRequestID(),
-		SequenceNumber: 0,
-		Data:           buffer.Bytes(),
-	}
-
-	return packet
+	packet.Data = buffer.Bytes()
 }
 
 func (packet *IcmpProto) SetSequenceNumber(sequenceNumber uint16) {
 	packet.SequenceNumber = sequenceNumber
+}
+
+func (packet *IcmpProto) ComputeChecksum() {
+	packet.ClearChecksum()
 	packet.Checksum = computeChecksum(packet.ToBytes())
 }
 
@@ -129,28 +133,21 @@ func (icmp *IcmpRequest) SendRequest(dstAddr [4]byte) {
 	}
 }
 
-func GetReply() *IcmpReply {
-	socketFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
+func GetReply(ctx context.Context, packetSize int) *IcmpReply {
+	ch := make(chan []byte)
+	go readResponse(ch, packetSize)
 
-	if err != nil {
-		log.Println("Error on creating the receive socket:", err)
+	select {
+	case <-ctx.Done():
+		log.Printf("Default timeout of %d seconds exceeded.\n", DEFAULT_TIMEOUT)
 		return nil
-	}
+	case response := <-ch:
+		ipHeader, icmpPayload := parseIpHeader(response)
+		icmpReply := parseIcmpReply(icmpPayload)
 
-	defer closeSocket(socketFd)
-
-	response := make([]byte, MAX_RESPONSE_LENGTH)
-
-	if _, err := syscall.Read(socketFd, response); err != nil {
-		log.Println("Response Error:", err)
-		return nil
-	}
-
-	ipHeader, icmpPayload := parseIpHeader(response)
-	icmpReply := parseIcmpReply(icmpPayload)
-
-	return &IcmpReply{
-		IpHeader: ipHeader,
-		Reply:    icmpReply,
+		return &IcmpReply{
+			IpHeader: ipHeader,
+			Reply:    icmpReply,
+		}
 	}
 }

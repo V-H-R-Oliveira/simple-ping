@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"syscall"
+	"time"
 )
 
 func generateRequestID() uint16 {
@@ -54,27 +55,40 @@ func calculatePadding(dataSize int) int {
 	return alignedPacketLength - dataSize - 8 // icmp header without data has 8 bytes
 }
 
-// func readResponse(ch chan<- []byte) {
-// 	socketFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
+func getTimestamp() *syscall.Timeval {
+	timeval := syscall.Timeval{}
 
-// 	if err != nil {
-// 		log.Println("Error on creating the receive socket:", err)
-// 		ch <- []byte{}
-// 		return
-// 	}
+	if err := syscall.Gettimeofday(&timeval); err != nil {
+		log.Fatal("Error on getting time of day:", err)
+	}
 
-// 	defer closeSocket(socketFd)
+	return &timeval
+}
 
-// 	response := make([]byte, MAX_RESPONSE_LENGTH)
+func ParseTimestamp(timestamp []byte) time.Time {
+	return time.Unix(int64(binary.LittleEndian.Uint64(timestamp[:8])), int64(binary.LittleEndian.Uint64(timestamp[8:16])))
+}
 
-// 	if _, err := syscall.Read(socketFd, response); err != nil {
-// 		log.Println("Response Error:", err)
-// 		ch <- response
-// 		return
-// 	}
+func readResponse(ch chan<- []byte, packetSize int) {
+	socketFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
 
-// 	ch <- response
-// }
+	if err != nil {
+		log.Println("Error on creating the receive socket:", err)
+		ch <- []byte{}
+		return
+	}
+
+	defer closeSocket(socketFd)
+	response := make([]byte, packetSize)
+
+	if _, err := syscall.Read(socketFd, response); err != nil {
+		log.Println("Response Error:", err)
+		ch <- response
+		return
+	}
+
+	ch <- response
+}
 
 func parseIpHeader(payload []byte) (*IpProtoHeader, []byte) {
 	return &IpProtoHeader{
