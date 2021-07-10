@@ -12,6 +12,18 @@ A very simplified IPv4 ping clone written in Golang.
 
 - The `data` field contains a [`struct timeval`](https://renenyffenegger.ch/notes/development/languages/C-C-plus-plus/C/libc/structs/timeval) with the current timestamp.
 
+## Input
+
+Currently, the accepted parameters are:
+
+- `-domain=<ipv4 address|domain name address>`
+
+-  `-requests=<amount of requests>`. Default is 2 requests
+
+## Screenshot
+
+![Usage](./images/screenshot.png)
+
 ## Output
 
 - It has a similar output from the ping utility.
