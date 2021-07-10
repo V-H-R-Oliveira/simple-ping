@@ -32,6 +32,12 @@ func IpToByteSlice(ip string) [4]byte {
 }
 
 func ResolveDomain(domain string) net.IP {
+	domain = strings.ToLower(domain)
+
+	if domain == "localhost" {
+		return net.ParseIP("127.0.0.1")
+	}
+
 	socket, err := utils.CreateUDPDNSSocket()
 
 	if err != nil {
