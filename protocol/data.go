@@ -1,6 +1,9 @@
 package protocol
 
-import "net"
+import (
+	"net"
+	"time"
+)
 
 type IpProtoHeader struct {
 	Version        uint8
@@ -36,6 +39,12 @@ type IcmpReply struct {
 	Reply    *IcmpProto
 }
 
+type Statistics struct {
+	Received    int
+	Transmitted int
+	TotalTime   time.Duration
+}
+
 const (
 	DEFAULT_VERSION      = 4
 	MIN_IP_HEADER_LENGTH = 5
@@ -43,5 +52,5 @@ const (
 	ECHO_REQUEST         = 8
 	NO_FRAGMENT          = 2
 	MAX_TTL              = 255
-	DEFAULT_TIMEOUT      = 10
+	DEFAULT_TIMEOUT      = 2
 )

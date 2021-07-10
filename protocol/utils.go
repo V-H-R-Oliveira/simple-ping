@@ -69,20 +69,11 @@ func ParseTimestamp(timestamp []byte) time.Time {
 	return time.Unix(int64(binary.LittleEndian.Uint64(timestamp[:8])), int64(binary.LittleEndian.Uint64(timestamp[8:16])))
 }
 
-func readResponse(ch chan<- []byte, packetSize int) {
-	socketFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
-
-	if err != nil {
-		log.Println("Error on creating the receive socket:", err)
-		ch <- []byte{}
-		return
-	}
-
-	defer closeSocket(socketFd)
+func readResponse(socketFd int, ch chan<- []byte, packetSize int) {
 	response := make([]byte, packetSize)
 
-	if _, err := syscall.Read(socketFd, response); err != nil {
-		log.Println("Response Error:", err)
+	if _, _, err := syscall.Recvfrom(socketFd, response, syscall.MSG_WAITALL); err != nil {
+		log.Println("Failed to receive a response due error:", err)
 		ch <- response
 		return
 	}

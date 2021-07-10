@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"net"
 	"syscall"
+	"time"
+	"unsafe"
 )
 
 func NewIPHeader(dstAddr net.IP) *IpProtoHeader {
@@ -114,13 +117,13 @@ func (icmpReq *IcmpRequest) ToBytes() []byte {
 	return buffer
 }
 
-func (icmp *IcmpRequest) SendRequest(dstAddr [4]byte) {
+func (icmp *IcmpRequest) SendRequest(callerCtx context.Context, dstAddr [4]byte) *IcmpReply {
 	dst := syscall.SockaddrInet4{
 		Port: 0,
 		Addr: dstAddr,
 	}
 
-	socketFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_RAW)
+	socketFd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
 
 	if err != nil {
 		log.Fatal("Error on creating the socket:", err)
@@ -128,20 +131,33 @@ func (icmp *IcmpRequest) SendRequest(dstAddr [4]byte) {
 
 	defer closeSocket(socketFd)
 
+	// Enable IPv4 custom header
+	if err := syscall.SetsockoptInt(socketFd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1); err != nil {
+		log.Fatal("Error on set socket option due error:", err)
+	}
+
 	if err := syscall.Sendto(socketFd, icmp.ToBytes(), 0, &dst); err != nil {
 		log.Fatal("Error on sending packet:", err)
 	}
-}
 
-func GetReply(ctx context.Context, packetSize int) *IcmpReply {
-	ch := make(chan []byte)
-	go readResponse(ch, packetSize)
+	expectedResponseLength := len(icmp.Request.Data) + int(unsafe.Sizeof(icmp.IpHeader))
+	responseChannel := make(chan []byte)
+	ctx, cancel := context.WithTimeout(context.Background(), DEFAULT_TIMEOUT*time.Second)
+
+	defer cancel()
+
+	go readResponse(socketFd, responseChannel, expectedResponseLength)
 
 	select {
 	case <-ctx.Done():
-		log.Printf("Default timeout of %d seconds exceeded.\n", DEFAULT_TIMEOUT)
 		return nil
-	case response := <-ch:
+	case <-callerCtx.Done():
+		log.Fatal("Caller cancellation.")
+	case response := <-responseChannel:
+		if len(response) == 0 {
+			return nil
+		}
+
 		ipHeader, icmpPayload := parseIpHeader(response)
 		icmpReply := parseIcmpReply(icmpPayload)
 
@@ -150,4 +166,36 @@ func GetReply(ctx context.Context, packetSize int) *IcmpReply {
 			Reply:    icmpReply,
 		}
 	}
+
+	return nil
+}
+
+func NewStatistics() *Statistics {
+	return &Statistics{
+		Received:    0,
+		Transmitted: 0,
+	}
+}
+
+func (stats *Statistics) IncrementReceived() {
+	stats.Received++
+}
+
+func (stats *Statistics) IncrementTransmitted() {
+	stats.Transmitted++
+}
+
+func (stats *Statistics) SetTotalTime(startTime time.Time) {
+	stats.TotalTime = time.Since(startTime)
+}
+
+func (stats *Statistics) PrettyStats(dstAddr string) {
+	fmt.Printf("--- %s ping statistics ---\n", dstAddr)
+	fmt.Printf(
+		"%d packets transmitted, %d received, %d%% packet loss, time %dms\n",
+		stats.Transmitted,
+		stats.Received,
+		((stats.Transmitted-stats.Received)/stats.Transmitted)*100,
+		stats.TotalTime.Milliseconds(),
+	)
 }
