@@ -1,4 +1,4 @@
-module github.com/V-H-R-Oliveira/simple-icmp-client
+module github.com/V-H-R-Oliveira/simple-ping
 
 go 1.16
 

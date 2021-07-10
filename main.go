@@ -10,8 +10,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/V-H-R-Oliveira/simple-icmp-client/protocol"
-	"github.com/V-H-R-Oliveira/simple-icmp-client/utils"
+	"github.com/V-H-R-Oliveira/simple-ping/protocol"
+	"github.com/V-H-R-Oliveira/simple-ping/utils"
 )
 
 func main() {

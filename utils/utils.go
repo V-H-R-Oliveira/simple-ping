@@ -11,7 +11,7 @@ import (
 
 	"github.com/V-H-R-Oliveira/dns-client/protocol"
 	"github.com/V-H-R-Oliveira/dns-client/utils"
-	icmpUtils "github.com/V-H-R-Oliveira/simple-icmp-client/protocol"
+	icmpUtils "github.com/V-H-R-Oliveira/simple-ping/protocol"
 )
 
 func IpToByteSlice(ip string) [4]byte {
