@@ -29,7 +29,3 @@ Currently, the accepted parameters are:
 ## Screenshot
 
 ![Usage](./images/screenshot.png)
-
-## Output
-
-- It has a similar output from the ping utility.
