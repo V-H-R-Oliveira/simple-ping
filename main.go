@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -30,14 +29,12 @@ func main() {
 	icmpRequest := protocol.NewIcmpRequest(dstIp)
 
 	signalCh := make(chan os.Signal, 1)
+	doneCh := make(chan struct{})
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	ctx, cancel := context.WithCancel(context.Background())
 	startPingSequence := time.Now()
 
 	go func() {
-		defer cancel()
-
 		for i := 1; i <= userInput.Quantity; i++ {
 			icmpRequest.Request.SetTimestamp()
 			icmpRequest.Request.SetSequenceNumber(uint16(i))
@@ -55,7 +52,7 @@ func main() {
 
 			requestTime := time.Now()
 			stats.IncrementTransmitted()
-			icmpReply := icmpRequest.SendRequest(ctx, dstIpAddr)
+			icmpReply := icmpRequest.SendRequest(dstIpAddr)
 
 			if icmpReply != nil {
 				stats.IncrementReceived()
@@ -65,14 +62,17 @@ func main() {
 
 			time.Sleep(time.Second)
 		}
+
+		stats.SetTotalTime(startPingSequence)
+		stats.PrettyStats(userInput.Domain)
+		doneCh <- struct{}{}
 	}()
 
 	select {
 	case <-signalCh:
 		stats.SetTotalTime(startPingSequence)
 		stats.PrettyStats(userInput.Domain)
-	case <-ctx.Done():
-		stats.SetTotalTime(startPingSequence)
-		stats.PrettyStats(userInput.Domain)
+	case <-doneCh:
+		return
 	}
 }

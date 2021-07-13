@@ -117,7 +117,7 @@ func (icmpReq *IcmpRequest) ToBytes() []byte {
 	return buffer
 }
 
-func (icmp *IcmpRequest) SendRequest(callerCtx context.Context, dstAddr [4]byte) *IcmpReply {
+func (icmp *IcmpRequest) SendRequest(dstAddr [4]byte) *IcmpReply {
 	dst := syscall.SockaddrInet4{
 		Port: 0,
 		Addr: dstAddr,
@@ -143,7 +143,6 @@ func (icmp *IcmpRequest) SendRequest(callerCtx context.Context, dstAddr [4]byte)
 	expectedResponseLength := len(icmp.Request.Data) + int(unsafe.Sizeof(icmp.IpHeader))
 	responseChannel := make(chan []byte)
 	ctx, cancel := context.WithTimeout(context.Background(), DEFAULT_TIMEOUT*time.Second)
-
 	defer cancel()
 
 	go readResponse(socketFd, responseChannel, expectedResponseLength)
@@ -151,8 +150,6 @@ func (icmp *IcmpRequest) SendRequest(callerCtx context.Context, dstAddr [4]byte)
 	select {
 	case <-ctx.Done():
 		return nil
-	case <-callerCtx.Done():
-		log.Fatal("Caller cancellation.")
 	case response := <-responseChannel:
 		if len(response) == 0 {
 			return nil
@@ -166,8 +163,6 @@ func (icmp *IcmpRequest) SendRequest(callerCtx context.Context, dstAddr [4]byte)
 			Reply:    icmpReply,
 		}
 	}
-
-	return nil
 }
 
 func NewStatistics() *Statistics {
