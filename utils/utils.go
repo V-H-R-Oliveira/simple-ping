@@ -47,7 +47,10 @@ func ResolveDomain(domain string) net.IP {
 	defer socket.Close()
 
 	query := protocol.NewDNSQuery(domain, protocol.A)
-	query.SendRequest(socket)
+
+	if err := query.SendRequest(socket); err != nil {
+		log.Fatalf("Failed to send a %s dns request due error: %s\n", domain, err.Error())
+	}
 
 	rawResponse := protocol.GetResponse(socket)
 	_, response := protocol.ParseDNSResponse(rawResponse, false)
